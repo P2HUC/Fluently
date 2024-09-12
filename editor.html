@@ -41,6 +41,11 @@
             white-space: pre-wrap;
             overflow-y: auto;
             background-color: #fff;
+            color: #333;
+        }
+
+        #text-editor.placeholder {
+            color: #aaa;
         }
 
         .corrections-panel {
@@ -95,7 +100,6 @@
             margin-left: 5px;
         }
 
-        /* Added buttons */
         .buttons {
             display: flex;
             justify-content: space-between;
@@ -122,11 +126,10 @@
 
     <div class="container">
         <div class="editor-container">
-            <div id="text-editor" contenteditable="true">
+            <div id="text-editor" contenteditable="true" class="placeholder">
                 Start typing here to see grammar, spelling, and style suggestions...
             </div>
 
-            <!-- Buttons for "Copy" and "Delete" -->
             <div class="buttons">
                 <button id="copy-btn">Copy</button>
                 <button id="delete-btn">Delete</button>
@@ -134,136 +137,54 @@
         </div>
         <div class="corrections-panel">
             <h2>Correct <span class="error-counter" id="error-counter">0</span></h2>
-            <div id="correction-list">
-                <!-- Error corrections will be dynamically added here -->
-            </div>
+            <div id="correction-list"></div>
         </div>
     </div>
 
     <script>
         const editor = document.getElementById('text-editor');
-        const correctionList = document.getElementById('correction-list');
-        const errorCounter = document.getElementById('error-counter');
         const copyBtn = document.getElementById('copy-btn');
         const deleteBtn = document.getElementById('delete-btn');
 
-        let typingTimer;
-        let errors = [];
-        let lastText = '';
+        let defaultText = "Start typing here to see grammar, spelling, and style suggestions...";
+        let isPlaceholderActive = true;
 
-        async function checkGrammar(text) {
-            try {
-                const response = await fetch('https://api.languagetool.org/v2/check', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams({
-                        'text': text,
-                        'language': 'en-US'
-                    })
-                });
-
-                const data = await response.json();
-                errors = data.matches;
-                highlightErrors(errors);
-                updateCorrectionsPanel(errors);
-
-            } catch (error) {
-                console.error('Error checking grammar:', error);
+        // Placeholder behavior
+        editor.addEventListener('focus', function () {
+            if (isPlaceholderActive) {
+                editor.innerText = '';
+                editor.classList.remove('placeholder');
+                isPlaceholderActive = false;
             }
-        }
+        });
 
-        function highlightErrors(matches) {
-            const content = editor.innerText;
-            let updatedContent = content;
-            let offset = 0;
-
-            matches.forEach(match => {
-                const incorrectText = updatedContent.substring(match.offset + offset, match.offset + offset + match.length);
-                let className = '';
-
-                if (match.rule.issueType === 'misspelling') {
-                    className = 'highlight-red';
-                } else if (match.rule.issueType === 'grammar') {
-                    className = 'highlight-yellow';
-                } else {
-                    className = 'highlight-blue';
-                }
-
-                const span = `<span class="${className}" data-error="${match.message}" data-suggestions="${match.replacements.map(r => r.value).join(',')}">${incorrectText}</span>`;
-                updatedContent = updatedContent.substring(0, match.offset + offset) + span + updatedContent.substring(match.offset + offset + match.length);
-                offset += span.length - match.length;
-            });
-
-            editor.innerHTML = updatedContent;
-        }
-
-        function updateCorrectionsPanel(matches) {
-            correctionList.innerHTML = '';
-            matches.forEach((match, index) => {
-                const listItem = document.createElement('div');
-                listItem.classList.add('correction-item');
-                listItem.id = `correction-${index}`; // Add ID to make it removable later
-                listItem.innerHTML = `
-                    <span>${match.rule.issueType} - ${match.message}</span>
-                    <div class="suggestion" onclick="replaceText('${match.replacements[0]?.value}', ${match.offset}, ${match.length}, ${index})">
-                        ${match.replacements[0]?.value}
-                    </div>
-                `;
-                correctionList.appendChild(listItem);
-            });
-
-            errorCounter.textContent = matches.length;
-        }
-
-        function replaceText(suggestion, offset, length, correctionIndex) {
-            const content = editor.innerText;
-
-            // Replace the error with the suggestion
-            const updatedText = content.substring(0, offset) + suggestion + content.substring(offset + length);
-            editor.innerText = updatedText;
-
-            // Re-check grammar for remaining errors after correction
-            setTimeout(() => checkGrammar(updatedText), 100);
-
-            // Remove the corrected issue from the panel
-            const correctionItem = document.getElementById(`correction-${correctionIndex}`);
-            if (correctionItem) {
-                correctionItem.remove();
+        editor.addEventListener('blur', function () {
+            if (editor.innerText.trim() === '') {
+                editor.innerText = defaultText;
+                editor.classList.add('placeholder');
+                isPlaceholderActive = true;
             }
-
-            // Update the error count
-            const currentErrors = correctionList.querySelectorAll('.correction-item').length;
-            errorCounter.textContent = currentErrors;
-        }
-
-        function delayedGrammarCheck() {
-            clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => {
-                const text = editor.innerText;
-                checkGrammar(text);
-            }, 1000);
-        }
+        });
 
         // Copy functionality
         copyBtn.addEventListener('click', () => {
-            const range = document.createRange();
-            range.selectNodeContents(editor);
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
-            document.execCommand('copy');
+            if (!isPlaceholderActive) {
+                const range = document.createRange();
+                range.selectNodeContents(editor);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                document.execCommand('copy');
+            }
         });
 
         // Delete functionality
         deleteBtn.addEventListener('click', () => {
-            editor.innerText = '';  // Clear the editor
-            correctionList.innerHTML = '';  // Clear the correction panel
-            errorCounter.textContent = '0';  // Reset the error counter
+            editor.innerText = defaultText;
+            editor.classList.add('placeholder');
+            isPlaceholderActive = true;
         });
 
-        editor.addEventListener('input', delayedGrammarCheck);
     </script>
 
 </body>
