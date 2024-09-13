@@ -98,7 +98,7 @@
         /* Added buttons */
         .buttons {
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             padding: 10px;
             background-color: #f5f5f5;
             border-top: 1px solid #ccc;
@@ -111,6 +111,7 @@
             padding: 10px 15px;
             cursor: pointer;
             border-radius: 5px;
+            margin-left: 10px;
         }
 
         .buttons button:hover {
@@ -125,8 +126,10 @@
             <div id="text-editor" contenteditable="true">
             </div>
 
-            <!-- Buttons for "Copy" and "Delete" -->
+            <!-- Buttons for "Copy", "Delete", "Home", and "Correct All" -->
             <div class="buttons">
+                <button id="home-btn">Home</button>
+                <button id="correct-all-btn">Correct All</button>
                 <button id="copy-btn">Copy</button>
                 <button id="delete-btn">Delete</button>
             </div>
@@ -145,6 +148,8 @@
         const errorCounter = document.getElementById('error-counter');
         const copyBtn = document.getElementById('copy-btn');
         const deleteBtn = document.getElementById('delete-btn');
+        const homeBtn = document.getElementById('home-btn');
+        const correctAllBtn = document.getElementById('correct-all-btn');
 
         let typingTimer;
         let errors = [];
@@ -237,11 +242,59 @@
             errorCounter.textContent = currentErrors;
         }
 
+        // Function to replace text with adjusted offsets for "Correct All"
+        function replaceTextAdjusted(suggestion, offset, length) {
+            const content = editor.innerText;
+
+            // Replace the error with the suggestion
+            const updatedText = content.substring(0, offset) + suggestion + content.substring(offset + length);
+
+            // Set the updated text in the editor
+            editor.innerText = updatedText;
+            
+            return updatedText; // Return updated text to recalculate the offsets
+        }
+
+        // Apply all corrections at once
+        correctAllBtn.addEventListener('click', () => {
+            let content = editor.innerText; // Get the current text in the editor
+            let totalOffsetChange = 0; // Track the total offset adjustment
+
+            errors.forEach((error, index) => {
+                const suggestion = error.replacements[0]?.value;
+                if (suggestion) {
+                    // Calculate the corrected offset by adding the totalOffsetChange
+                    const correctedOffset = error.offset + totalOffsetChange;
+                    
+                    // Replace the text at the adjusted offset
+                    content = replaceTextAdjusted(suggestion, correctedOffset, error.length);
+                    
+                    // Adjust the total offset change based on the difference between the original and replacement text lengths
+                    totalOffsetChange += suggestion.length - error.length;
+                }
+
+                // Remove the correction item from the panel
+                const correctionItem = document.getElementById(`correction-${index}`);
+                if (correctionItem) {
+                    correctionItem.remove();
+                }
+            });
+
+            // Re-check grammar for remaining errors after correction
+            setTimeout(() => checkGrammar(content), 100);
+
+            // Update the error counter after correction
+            errorCounter.textContent = '0'; // Assuming all errors were fixed
+        });
+
         function delayedGrammarCheck() {
             clearTimeout(typingTimer);
             typingTimer = setTimeout(() => {
-                const text = editor.innerText;
-                checkGrammar(text);
+                const currentText = editor.innerText;
+                if (currentText !== lastText) {
+                    checkGrammar(currentText);
+                    lastText = currentText;
+                }
             }, 1000);
         }
 
@@ -260,6 +313,11 @@
             editor.innerText = '';  // Clear the editor
             correctionList.innerHTML = '';  // Clear the correction panel
             errorCounter.textContent = '0';  // Reset the error counter
+        });
+
+        // Go back to index.html
+        homeBtn.addEventListener('click', () => {
+            window.location.href = 'index.html';
         });
 
         editor.addEventListener('input', delayedGrammarCheck);
