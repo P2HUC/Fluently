@@ -33,8 +33,8 @@
 
         #text-editor {
             flex: 1;
-            padding: 20px;
-            font-size: 16px;
+            padding: 0; /* Removed padding */
+            font-size: 18px; /* Ensured font-size is set to 18px */
             line-height: 1.6;
             border: none;
             outline: none;
@@ -178,10 +178,60 @@
             }
         }
 
+        function getCaretPosition() {
+            let sel = window.getSelection();
+            if (sel.rangeCount) {
+                let range = sel.getRangeAt(0);
+                let preCaretRange = range.cloneRange();
+                preCaretRange.selectNodeContents(editor);
+                preCaretRange.setEnd(range.endContainer, range.endOffset);
+                return preCaretRange.toString().length;
+            }
+            return 0;
+        }
+
+        function setCaretPosition(offset) {
+            let sel = window.getSelection();
+            let range = document.createRange();
+            let node = editor;
+
+            let stack = [node];
+            let charCount = 0;
+            let found = false;
+
+            while (stack.length > 0) {
+                let currentNode = stack.pop();
+                if (currentNode.nodeType === Node.TEXT_NODE) {
+                    let textLength = currentNode.length;
+                    if (charCount + textLength >= offset) {
+                        range.setStart(currentNode, offset - charCount);
+                        found = true;
+                        break;
+                    }
+                    charCount += textLength;
+                } else {
+                    let children = currentNode.childNodes;
+                    for (let i = children.length - 1; i >= 0; i--) {
+                        stack.push(children[i]);
+                    }
+                }
+            }
+
+            if (!found) {
+                range.setStart(node, node.childNodes.length);
+            }
+
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+
         function highlightErrors(matches) {
             const content = editor.innerText;
             let updatedContent = content;
             let offset = 0;
+
+            let caretPosition = getCaretPosition();
 
             matches.forEach(match => {
                 const incorrectText = updatedContent.substring(match.offset + offset, match.offset + offset + match.length);
@@ -201,6 +251,8 @@
             });
 
             editor.innerHTML = updatedContent;
+
+            setCaretPosition(caretPosition);
         }
 
         function updateCorrectionsPanel(matches) {
@@ -208,7 +260,7 @@
             matches.forEach((match, index) => {
                 const listItem = document.createElement('div');
                 listItem.classList.add('correction-item');
-                listItem.id = `correction-${index}`; // Add ID to make it removable later
+                listItem.id = `correction-${index}`;
                 listItem.innerHTML = `
                     <span>${match.rule.issueType} - ${match.message}</span>
                     <div class="suggestion" onclick="replaceText('${match.replacements[0]?.value}', ${match.offset}, ${match.length}, ${index})">
@@ -224,103 +276,73 @@
         function replaceText(suggestion, offset, length, correctionIndex) {
             const content = editor.innerText;
 
-            // Replace the error with the suggestion
             const updatedText = content.substring(0, offset) + suggestion + content.substring(offset + length);
             editor.innerText = updatedText;
 
-            // Re-check grammar for remaining errors after correction
             setTimeout(() => checkGrammar(updatedText), 100);
 
-            // Remove the corrected issue from the panel
             const correctionItem = document.getElementById(`correction-${correctionIndex}`);
             if (correctionItem) {
                 correctionItem.remove();
             }
 
-            // Update the error count
             const currentErrors = correctionList.querySelectorAll('.correction-item').length;
             errorCounter.textContent = currentErrors;
         }
 
-        // Function to replace text with adjusted offsets for "Correct All"
         function replaceTextAdjusted(suggestion, offset, length) {
             const content = editor.innerText;
-
-            // Replace the error with the suggestion
             const updatedText = content.substring(0, offset) + suggestion + content.substring(offset + length);
-
-            // Set the updated text in the editor
             editor.innerText = updatedText;
             
-            return updatedText; // Return updated text to recalculate the offsets
+            return updatedText;
         }
 
-        // Apply all corrections at once
         correctAllBtn.addEventListener('click', () => {
-            let content = editor.innerText; // Get the current text in the editor
-            let totalOffsetChange = 0; // Track the total offset adjustment
+            let content = editor.innerText;
+            let totalOffsetChange = 0;
 
-            errors.forEach((error, index) => {
-                const suggestion = error.replacements[0]?.value;
-                if (suggestion) {
-                    // Calculate the corrected offset by adding the totalOffsetChange
-                    const correctedOffset = error.offset + totalOffsetChange;
-                    
-                    // Replace the text at the adjusted offset
-                    content = replaceTextAdjusted(suggestion, correctedOffset, error.length);
-                    
-                    // Adjust the total offset change based on the difference between the original and replacement text lengths
-                    totalOffsetChange += suggestion.length - error.length;
-                }
+            errors.forEach((error) => {
+                if (error.replacements && error.replacements[0]) {
+                    const suggestion = error.replacements[0].value;
+                    const offset = error.offset + totalOffsetChange;
+                    const length = error.length;
 
-                // Remove the correction item from the panel
-                const correctionItem = document.getElementById(`correction-${index}`);
-                if (correctionItem) {
-                    correctionItem.remove();
+                    const updatedText = replaceTextAdjusted(suggestion, offset, length);
+                    totalOffsetChange += suggestion.length - length;
+                    content = updatedText;
                 }
             });
 
-            // Re-check grammar for remaining errors after correction
-            setTimeout(() => checkGrammar(content), 100);
-
-            // Update the error counter after correction
-            errorCounter.textContent = '0'; // Assuming all errors were fixed
+            checkGrammar(content);
         });
 
-        function delayedGrammarCheck() {
+        // Detect typing in the editor
+        editor.addEventListener('input', () => {
             clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => {
-                const currentText = editor.innerText;
-                if (currentText !== lastText) {
-                    checkGrammar(currentText);
-                    lastText = currentText;
-                }
-            }, 1000);
-        }
+            const text = editor.innerText;
+            if (text !== lastText) {
+                lastText = text;
+                typingTimer = setTimeout(() => checkGrammar(text), 1000); // 1 second delay before calling grammar check
+            }
+        });
 
-        // Copy functionality
         copyBtn.addEventListener('click', () => {
-            const range = document.createRange();
-            range.selectNodeContents(editor);
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
-            document.execCommand('copy');
+            const text = editor.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Text copied to clipboard!');
+            });
         });
 
-        // Delete functionality
         deleteBtn.addEventListener('click', () => {
-            editor.innerText = '';  // Clear the editor
-            correctionList.innerHTML = '';  // Clear the correction panel
-            errorCounter.textContent = '0';  // Reset the error counter
+            editor.innerHTML = '';
+            correctionList.innerHTML = '';
+            errorCounter.textContent = '0';
         });
 
-        // Go back to index.html
         homeBtn.addEventListener('click', () => {
-            window.location.href = 'index.html';
+            window.location.href = 'index.html'; // Example for navigation to home
         });
-
-        editor.addEventListener('input', delayedGrammarCheck);
     </script>
 
 </body>
