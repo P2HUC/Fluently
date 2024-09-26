@@ -1,0 +1,112 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body, html {
+    height: 100%;
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+}
+
+.editor-container {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: white;
+    border-right: 1px solid #ccc;
+}
+
+#text-editor {
+    flex: 1;
+    padding: 0; /* Removed padding */
+    font-size: 18px; /* Ensured font-size is set to 18px */
+    line-height: 1.6;
+    border: none;
+    outline: none;
+    white-space: pre-wrap;
+    overflow-y: auto;
+    background-color: #fff;
+}
+
+.corrections-panel {
+    flex: 1;
+    padding: 10px;
+    background-color: #f0f0f5;
+    width: 300px;
+    overflow-y: auto;
+    position: relative;
+}
+
+.corrections-panel h2 {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.correction-item {
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.correction-item .suggestion {
+    background-color: #007bff;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: inline-block;
+    margin-top: 10px;
+}
+
+.highlight-red {
+    background-color: #fdd;
+    text-decoration: underline red wavy;
+}
+
+.highlight-yellow {
+    background-color: #ffeb99;
+    text-decoration: underline yellow wavy;
+}
+
+.highlight-blue {
+    background-color: #d0e6f8;
+    text-decoration: underline blue wavy;
+}
+
+.error-counter {
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+/* Added buttons */
+.buttons {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-top: 1px solid #ccc;
+}
+
+.buttons button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: 5px;
+    margin-left: 10px;
+}
+
+.buttons button:hover {
+    background-color: #0056b3;
+}
