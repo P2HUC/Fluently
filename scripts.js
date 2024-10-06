@@ -116,59 +116,65 @@ const editor = document.getElementById('text-editor');
                 const listItem = document.createElement('div');
                 listItem.classList.add('correction-item');
                 listItem.id = `correction-${index}`;
+        
+                const suggestionsHtml = match.replacements.map((suggestion, suggestionIndex) => {
+                    return `
+                        <div class="suggestion" onclick="replaceText('${suggestion.value}', ${match.offset}, ${match.length}, ${index})">
+                            ${suggestion.value}
+                        </div>
+                    `;
+                }).join('');
+        
                 listItem.innerHTML = `
                     <span>${match.rule.issueType} - ${match.message}</span>
-                    <div class="suggestion" onclick="replaceText('${match.replacements[0]?.value}', ${match.offset}, ${match.length}, ${index})">
-                        ${match.replacements[0]?.value}
-                    </div>
+                    ${suggestionsHtml}
                 `;
                 correctionList.appendChild(listItem);
             });
-
+        
             errorCounter.textContent = matches.length;
         }
 
-        function replaceText(suggestion, offset, length, correctionIndex) {
+        function replaceText(suggestion, offset, length, correctionIndex, suggestionIndex) {
             const content = editor.innerText;
-
             const updatedText = content.substring(0, offset) + suggestion + content.substring(offset + length);
             editor.innerText = updatedText;
-
+        
             setTimeout(() => checkGrammar(updatedText), 100);
-
+        
             const correctionItem = document.getElementById(`correction-${correctionIndex}`);
             if (correctionItem) {
                 correctionItem.remove();
             }
-
+        
             const currentErrors = correctionList.querySelectorAll('.correction-item').length;
             errorCounter.textContent = currentErrors;
         }
 
-        function replaceTextAdjusted(suggestion, offset, length) {
+        function replaceTextAdjusted(suggestion, offset, length, correctionIndex, suggestionIndex) {
             const content = editor.innerText;
             const updatedText = content.substring(0, offset) + suggestion + content.substring(offset + length);
             editor.innerText = updatedText;
-            
+        
             return updatedText;
         }
 
         correctAllBtn.addEventListener('click', () => {
             let content = editor.innerText;
             let totalOffsetChange = 0;
-
-            errors.forEach((error) => {
+        
+            errors.forEach((error, errorIndex) => {
                 if (error.replacements && error.replacements[0]) {
                     const suggestion = error.replacements[0].value;
                     const offset = error.offset + totalOffsetChange;
                     const length = error.length;
-
-                    const updatedText = replaceTextAdjusted(suggestion, offset, length);
+        
+                    const updatedText = replaceTextAdjusted(suggestion, offset, length, errorIndex, 0);
                     totalOffsetChange += suggestion.length - length;
                     content = updatedText;
                 }
             });
-
+        
             checkGrammar(content);
         });
 
@@ -199,3 +205,12 @@ const editor = document.getElementById('text-editor');
             window.location.href = 'index.html'; // Example for navigation to home
         });
         
+        const editorr = document.getElementById('editor');
+        const wordCountElement = document.getElementById('word-count');
+        const charCountElement = document.getElementById('char-count');
+
+        editor.addEventListener('input', () => {
+            const text = editor.innerText;
+            const words = text.trim().split(/\s+/).length;
+            wordCountElement.textContent = words;
+        });
