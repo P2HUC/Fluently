@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grammar Check Tool</title>
+    <link rel="stylesheet" href="styles_editor.css">
+</head>
+<body>
+
+    <div class="container">
+        <div class="editor-container">
+            <div id="text-editor" contenteditable="true">
+            </div>
+
+            <!-- Buttons for "Copy", "Delete", "Home", and "Correct All" -->
+            <div class="buttons">
+                <button id="home-btn">Home</button>
+                <button id="correct-all-btn">Correct All</button>
+                <button id="copy-btn">Copy</button>
+                <button id="delete-btn">Delete</button>
+            </div>
+        </div>
+        <div class="corrections-panel">
+            <h2>Correct <span class="error-counter" id="error-counter">0</span></h2>
+            <div id="correction-list">
+                <!-- Error corrections will be dynamically added here -->
+            </div>
+        </div>
+    </div>
+
+    <div class="counter-container">
+            <span class="word-count">Words: <span id="word-count">0</span></span>
+        </div>
+
+    <script src="scripts.js"></script>
+
+    
+    
+
+</body>
+</html>
