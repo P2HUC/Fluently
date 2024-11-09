@@ -21,8 +21,13 @@
         .dropdown-menu.show {
             display: block;
         }
+        .error-highlight {
+            background-color: rgba(255, 0, 0, 0.2); /* Light red background */
+        }
     </style>
     <script>
+        let errorRanges = []; // Store error ranges for highlighting
+
         function copyText() {
             const textarea = document.querySelector('textarea');
             textarea.select();
@@ -58,6 +63,8 @@
         function clearSuggestions() {
             const suggestionsContainer = document.getElementById('suggestions-container');
             suggestionsContainer.innerHTML = '';
+            errorRanges = []; // Clear error ranges
+            highlightErrors(); // Reset highlighting
         }
 
         async function checkGrammar() {
@@ -97,15 +104,52 @@
                 return;
             }
 
+            errorRanges = []; // Clear previous error ranges
+
             matches.forEach(match => {
                 const suggestion = document.createElement('div');
-                suggestion.className = 'mb-2 p-2 border border-red-300 rounded';
+                suggestion.className = 'mb-2 p-2 border border-red-300 rounded cursor-pointer';
                 suggestion.innerHTML = `
                     <strong>Error:</strong> ${match.context.text} <br>
                     <strong>Suggestions:</strong> ${match.replacements.map(r => r.value).join(', ')}
                 `;
+                suggestion.onclick = () => replaceError(match);
                 suggestionsContainer.appendChild(suggestion);
+
+                // Store the error range for highlighting
+                errorRanges.push({
+                    start: match.offset,
+                    length: match.length,
+                    replacements: match.replacements
+                });
             });
+
+            highlightErrors();
+        }
+
+        function highlightErrors() {
+            const textarea = document.querySelector('textarea');
+            const text = textarea.value;
+
+            const highlightedText = errorRanges.reduce((acc, { start, length }) => {
+                return acc.slice(0, start) + `<span class="error-highlight">${acc.slice(start, start + length)}</span>` + acc.slice(start + length);
+            }, text);
+
+            // Update the textarea with highlighted text
+            textarea.innerHTML = highlightedText; // Note: This won't work directly on a textarea, consider using a contenteditable div instead
+        }
+
+        function replaceError(match) {
+            const textarea = document.querySelector('textarea');
+            const text = textarea.value;
+
+            // Replace the erroneous text with the first suggestion
+            const correctedText = text.slice(0, match.offset) + match.replacements[0].value + text.slice(match.offset + match.length);
+            textarea.value = correctedText;
+
+            // Clear suggestions and recheck grammar
+            clearSuggestions();
+            checkGrammar();
         }
 
         document.addEventListener('click', closeDropdown);
@@ -123,9 +167,9 @@
             <div class="flex-1 p-6 relative">
                 <div class="flex items-center mb-4">
                     <button class="p-2 rounded-full hover:bg-gray-200 dropdown-toggle" onclick="toggleDropdown()">
-                        <i class="fas fa-bars text-gray-600"></i>
+                        <i class="fas fa-bars text-gray-600 "></i>
                     </button>
-                    <h1 class ="ml-4 text-lg font-semibold text-gray-600 cursor-pointer" id="document-title" onclick="changeTitle()">
+                    <h1 class="ml-4 text-lg font-semibold text-gray-600 cursor-pointer" id="document-title" onclick="changeTitle()">
                         Untitled document
                     </h1>
                     <!-- Dropdown Menu -->
@@ -152,7 +196,7 @@
                     <h2 class="text-lg font-semibold text-gray-800 mb-2">
                         Time to dig in.
                     </h2>
-                    <div id="suggestions-container">
+                    <div id="suggestions-container" class="overflow-y-auto max-h-96 border border-gray-300 p-2 rounded">
                         <p class="text-gray-600">
                             Suggestions will appear here.
                         </p>
